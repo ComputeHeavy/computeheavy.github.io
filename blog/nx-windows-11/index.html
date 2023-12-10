@@ -1,49 +1,6 @@
 <html>
     <head>
-        <style>
-            body {
-                background-color: #333;
-                color: #eee;
-                font-family: monospace;
-                font-size: 18px;
-                width: 900px;
-            }
-
-            h1 {
-                color: hotpink;
-            }
-
-            h2 {
-                color: hotpink;
-            }
-
-            pre {
-                background-color: #444;
-                font-size: 16px;
-                width: 600px;
-            }
-
-            span {
-                background-color: #444;
-                font-size: 16px;
-            }
-
-            a:link {
-                color: white;
-            }
-
-            a:visited {
-                color: hotpink;
-            }
-
-            a:hover {
-                color: white;
-            }
-
-            a:active {
-                color: hotpink;
-            }
-        </style>
+        <link rel="stylesheet" href="/site.css">
     </head>
 
     <body>
@@ -57,7 +14,7 @@
 
         <div>
             <h2>The Background</h2>
-            
+
             <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, made it <span>EXECUTE_READWRITE</span>, and moved on with my life.</p>
 
             <p>Eventually I got curious how I could get an executable stack and dove a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.

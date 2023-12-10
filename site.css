@@ -1,0 +1,42 @@
+body {
+    background-color: #333;
+    color: #eee;
+    font-family: monospace;
+    font-size: 18px;
+    width: 900px;
+}
+
+h1 {
+    color: hotpink;
+}
+
+h2 {
+    color: hotpink;
+}
+
+pre {
+    background-color: #444;
+    font-size: 16px;
+    width: 600px;
+}
+
+span {
+    background-color: #444;
+    font-size: 16px;
+}
+
+a:link {
+    color: white;
+}
+
+a:visited {
+    color: hotpink;
+}
+
+a:hover {
+    color: white;
+}
+
+a:active {
+    color: hotpink;
+}
