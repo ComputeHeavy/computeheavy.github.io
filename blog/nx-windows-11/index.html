@@ -27,8 +27,115 @@
     </head>
 
     <body>
-        <p>This is driving me a little crazy. I don't think there is any way to get an executable stack or heap in a program you compile on Windows 11.</p>
+        <h1>Executable Stack or Heap on Windows 11</h1>
+        <p>Putting this out there to see if anyone has any ideas. I don't think there is any way to get an executable stack or heap (without VirtualProtect) in a program you compile on Windows 11.</p>
+
         <p>If you want to follow along you'll need Visual Studio or the Visual Studio Build Tools installed for the the developer command prompt.</p>
+
+        <h2>Background</h2>
+
+        <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option /NXCOMPAT:NO would give an executable stack. When it did not I hit it with the old VirtualProtect, changed it to EXECUTE_READWRITE and moved on.</p>
+
+        <p>Eventually I got curious if I <i>could</i> get an executable stack and started diving a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.
+
+        <h2>Environment</h2>
+
+        <p>Some of the documentation talked about the system DEP policy, so let's check that first. Open a Command Prompt as Administrator and check with bcdedit.
+            <pre>
+C:\Windows\System32>bcdedit
+
+Windows Boot Manager
+--------------------
+identifier              {bootmgr}
+device                  partition=\Device\HarddiskVolume1
+path                    \EFI\Microsoft\Boot\bootmgfw.efi
+description             Windows Boot Manager
+locale                  en-US
+inherit                 {globalsettings}
+default                 {current}
+resumeobject            {9378e909-ec67-49fd-ab7b-46c2525300e3}
+displayorder            {current}
+toolsdisplayorder       {memdiag}
+timeout                 30
+
+Windows Boot Loader
+-------------------
+identifier              {current}
+device                  partition=C:
+path                    \Windows\system32\winload.efi
+description             Windows 11
+locale                  en-US
+inherit                 {bootloadersettings}
+recoverysequence        {9378e909-ec67-49fd-ab7b-46c2525300e3}
+displaymessageoverride  Recovery
+recoveryenabled         Yes
+isolatedcontext         Yes
+allowedinmemorysettings 0x15000075
+osdevice                partition=C:
+systemroot              \Windows
+resumeobject            {9378e909-ec67-49fd-ab7b-46c2525300e3}
+nx                      OptIn
+bootmenupolicy          Standard
+            </pre>
+        </p>
+
+        <p>The program: 
+            <pre>
+#include &lt;windows.h&gt;
+#include &lt;stdio.h&gt;
+
+void PrintMemoryProtection(DWORD protect) {
+    switch (protect) {
+        case PAGE_EXECUTE:           printf("Execute\n"); break;
+        case PAGE_EXECUTE_READ:      printf("Execute, Read\n"); break;
+        case PAGE_EXECUTE_READWRITE: printf("Execute, Read, Write\n"); break;
+        case PAGE_EXECUTE_WRITECOPY: printf("Execute, Write Copy\n"); break;
+        case PAGE_NOACCESS:          printf("No Access\n"); break;
+        case PAGE_READONLY:          printf("Read Only\n"); break;
+        case PAGE_READWRITE:         printf("Read, Write\n"); break;
+        case PAGE_WRITECOPY:         printf("Write Copy\n"); break;
+        case PAGE_GUARD:             printf("Guard Page\n"); break;
+        case PAGE_NOCACHE:           printf("No Cache\n"); break;
+        case PAGE_WRITECOMBINE:      printf("Write Combine\n"); break;
+        default:                     printf("Unknown protection\n"); break;
+    }
+}
+
+int main() {
+    // admin command prompt
+        // bcdedit
+            // nx OptIn
+
+    // docs: If the DEP system policy is OptIn or OptOut 
+        // and DEP is enabled for the process, setting 
+        // dwFlags to 0 disables DEP for the process. 
+    // disable dep
+    SetProcessDEPPolicy(0);
+    
+    MEMORY_BASIC_INFORMATION mbi;
+    char stack_ptr[0x100];
+    char *heap_ptr = (char *)malloc(0x100);
+
+    if (VirtualQuery(stack_ptr, &mbi, sizeof(mbi)) != 0) {
+        printf("Memory Protection of %p (stack): ", stack_ptr);
+        PrintMemoryProtection(mbi.Protect);
+    } else {
+        printf("Error getting memory protection\n");
+    }
+
+    if (VirtualQuery(heap_ptr, &mbi, sizeof(mbi)) != 0) {
+        printf("Memory Protection of %p (heap):  ", heap_ptr);
+        PrintMemoryProtection(mbi.Protect);
+    } else {
+        printf("Error getting memory protection\n");
+    }
+
+    free(heap_ptr);
+
+    return 0;
+}
+            </pre>
+        </p>
 
 <!-- // install visual studio
 // open developer command prompt
