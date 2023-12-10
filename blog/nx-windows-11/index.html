@@ -3,9 +3,15 @@
         <style>
             body {
                 background-color: #333;
-                color: white;
+                color: #eee;
                 font-family: monospace;
+                font-size: 18px;
                 width: 600px;
+            }
+
+            pre {
+                background-color: #444;
+                font-size: 16px;
             }
 
             a:link {
@@ -32,15 +38,18 @@
 
         <p>If you want to follow along you'll need Visual Studio or the Visual Studio Build Tools installed for the the developer command prompt.</p>
 
-        <h2>Background</h2>
+        <div>
+            <h2>Background</h2>
+            <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option /NXCOMPAT:NO would give an executable stack. When it did not I hit it with the old VirtualProtect, changed it to EXECUTE_READWRITE and moved on.</p>
 
-        <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option /NXCOMPAT:NO would give an executable stack. When it did not I hit it with the old VirtualProtect, changed it to EXECUTE_READWRITE and moved on.</p>
+            <p>Eventually I got curious if I <i>could</i> get an executable stack and started diving a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.
+        </div>
 
-        <p>Eventually I got curious if I <i>could</i> get an executable stack and started diving a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.
+        <div>
+            <h2>Environment</h2>
 
-        <h2>Environment</h2>
+            <p>Some of the documentation talked about the system DEP policy, so let's check that first. Open a Command Prompt as Administrator and check with bcdedit.</p>
 
-        <p>Some of the documentation talked about the system DEP policy, so let's check that first. Open a Command Prompt as Administrator and check with bcdedit.
             <pre>
 C:\Windows\System32>bcdedit
 
@@ -77,10 +86,19 @@ resumeobject            {9378e909-ec67-49fd-ab7b-46c2525300e3}
 nx                      OptIn
 bootmenupolicy          Standard
             </pre>
-        </p>
 
-        <p>The program: 
+            <p>Using <i>bcdedit /set nx optout</i> works. Due to Secure Boot through, I cannot set it to <i>AlwaysOff</i>. So once again, Secure Boot ruins all our fun.</p>
+
             <pre>
+C:\Windows\System32>bcdedit /set nx alwaysoff
+An error has occurred setting the element data.
+The value is protected by Secure Boot policy and cannot be modified or deleted.
+            </pre>
+        </div>
+
+        <p>The program:</p>
+
+        <pre>
 #include &lt;windows.h&gt;
 #include &lt;stdio.h&gt;
 
@@ -134,8 +152,7 @@ int main() {
 
     return 0;
 }
-            </pre>
-        </p>
+        </pre>
 
 <!-- // install visual studio
 // open developer command prompt
