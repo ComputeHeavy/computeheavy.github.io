@@ -49,14 +49,15 @@
     <body>
         <h1>Executable Stack or Heap on Windows 11</h1>
 
-        <p>I do not think there is any way to get an executable stack or heap (without <span>VirtualProtect</span>) in a program you compile on Windows 11. Turning off DEP and NX everywhere I can, I have not been able to produce an executable stack or heap.</p> 
+        <p>There is no any way to get an executable stack or heap (without <span>VirtualProtect</span>) in a program you compile on Windows 11. Bold assertion but I am making it so someone will explain to me why I am wrong.</p> 
 
-        <p>Not sure if I am missing something, if this is an opinionated system change (why have all the options then?), or if this is a Windows bug. If anyone has any ideas, get in touch.</p>
+        <p>Turning off DEP and NX everywhere I can find, I have not been able to produce an executable stack or heap.</p> 
 
         <p>If you want to follow along you'll need Visual Studio or the Visual Studio Build Tools installed for the the developer command prompt.</p>
 
         <div>
             <h2>The Background</h2>
+            
             <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, made it <span>EXECUTE_READWRITE</span>, and moved on with my life.</p>
 
             <p>Eventually I got curious how I could get an executable stack and dove a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.
