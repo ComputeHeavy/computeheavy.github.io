@@ -1,0 +1,91 @@
+<html>
+    <head>
+        <style>
+            body {
+                background-color: #333;
+                color: white;
+                font-family: monospace;
+            }
+        </style>
+    </head>
+
+    <body>
+        <p>This is driving me a little crazy. I don't think there is any way to get an executable stack or heap in a program you compile on Windows 11.</p>
+        <p>If you want to follow along you'll need Visual Studio or the Visual Studio Build Tools installed for the the developer command prompt.</p>
+
+<!-- // install visual studio
+// open developer command prompt
+// compile with:
+// cl /guard:cf- /Qspectre- /GS- test.c /link /SAFESEH:NO /GUARD:NO /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO
+
+// confirm no nx with dumpbin
+// 8000 DLL characteristics
+//     Terminal Server Aware
+
+// versus standard (cl test.c)
+// 8160 DLL characteristics
+//     High Entropy Virtual Addresses
+//     Dynamic base
+//     NX compatible
+//     Terminal Server Aware
+
+#include <windows.h>
+#include <stdio.h>
+
+void PrintMemoryProtection(DWORD protect) {
+    switch (protect) {
+        case PAGE_EXECUTE:           printf("Execute\n"); break;
+        case PAGE_EXECUTE_READ:      printf("Execute, Read\n"); break;
+        case PAGE_EXECUTE_READWRITE: printf("Execute, Read, Write\n"); break;
+        case PAGE_EXECUTE_WRITECOPY: printf("Execute, Write Copy\n"); break;
+        case PAGE_NOACCESS:          printf("No Access\n"); break;
+        case PAGE_READONLY:          printf("Read Only\n"); break;
+        case PAGE_READWRITE:         printf("Read, Write\n"); break;
+        case PAGE_WRITECOPY:         printf("Write Copy\n"); break;
+        case PAGE_GUARD:             printf("Guard Page\n"); break;
+        case PAGE_NOCACHE:           printf("No Cache\n"); break;
+        case PAGE_WRITECOMBINE:      printf("Write Combine\n"); break;
+        default:                     printf("Unknown protection\n"); break;
+    }
+}
+
+int main() {
+    // admin command prompt
+        // bcdedit
+            // nx OptIn
+
+    // docs: If the DEP system policy is OptIn or OptOut 
+        // and DEP is enabled for the process, setting 
+        // dwFlags to 0 disables DEP for the process. 
+    // disable dep
+    SetProcessDEPPolicy(0);
+    
+    MEMORY_BASIC_INFORMATION mbi;
+    char stack_ptr[0x100];
+    char *heap_ptr = (char *)malloc(0x100);
+
+    if (VirtualQuery(stack_ptr, &mbi, sizeof(mbi)) != 0) {
+        printf("Memory Protection of %p (stack): ", stack_ptr);
+        PrintMemoryProtection(mbi.Protect);
+    } else {
+        printf("Error getting memory protection\n");
+    }
+
+    if (VirtualQuery(heap_ptr, &mbi, sizeof(mbi)) != 0) {
+        printf("Memory Protection of %p (heap):  ", heap_ptr);
+        PrintMemoryProtection(mbi.Protect);
+    } else {
+        printf("Error getting memory protection\n");
+    }
+
+    free(heap_ptr);
+
+    return 0;
+}
+
+// and yet...
+// Memory Protection of 000000000014FDE0 (stack): Read, Write
+// Memory Protection of 00000000004743D0 (heap):  Read, Write -->
+    </body>
+</html>
+
