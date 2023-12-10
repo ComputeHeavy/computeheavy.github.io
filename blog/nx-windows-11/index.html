@@ -6,7 +6,7 @@
                 color: #eee;
                 font-family: monospace;
                 font-size: 18px;
-                width: 600px;
+                width: 900px;
             }
 
             pre {
@@ -94,11 +94,14 @@ C:\Windows\System32>bcdedit /set nx alwaysoff
 An error has occurred setting the element data.
 The value is protected by Secure Boot policy and cannot be modified or deleted.
             </pre>
+
+            <p>We should still be able to do this with <i>OptIn</i> though, right? ...right?</p>
         </div>
 
-        <p>The program:</p>
+        <div>
+            <h2>Test Program</h2>
 
-        <pre>
+            <pre>
 #include &lt;windows.h&gt;
 #include &lt;stdio.h&gt;
 
@@ -120,10 +123,6 @@ void PrintMemoryProtection(DWORD protect) {
 }
 
 int main() {
-    // admin command prompt
-        // bcdedit
-            // nx OptIn
-
     // docs: If the DEP system policy is OptIn or OptOut 
         // and DEP is enabled for the process, setting 
         // dwFlags to 0 disables DEP for the process. 
@@ -153,6 +152,7 @@ int main() {
     return 0;
 }
         </pre>
+    </div>
 
 <!-- // install visual studio
 // open developer command prompt
