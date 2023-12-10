@@ -207,125 +207,74 @@ int main() {
 
     return 0;
 }
-        </pre>
+            </pre>
 
-        <p>We will be compiling with <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>. Turning off ASLR does work.</p>
-    </div>
+            <p>We will be compiling with <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>. Turning off ASLR does work.</p>
+        </div>
 
-    <div>
-        <h2>The Results</h2>
+        <div>
+            <h2>The Results</h2>
 
-        <p>First, if we compile a plain executable with <span>cl test.c</span>, then run <span>dumpbin /HEADERS text.exe</span> we see the following <span>DLL Characteristics</span>.</p>
+            <p>First, if we compile a plain executable with <span>cl test.c</span>, then run <span>dumpbin /HEADERS text.exe</span> we see the following <span>DLL Characteristics</span>.</p>
 
-        <pre>
-8160 DLL characteristics
-    High Entropy Virtual Addresses
-    Dynamic base
-    NX compatible
-    Terminal Server Aware
-        </pre>
+            <pre>
+    8160 DLL characteristics
+        High Entropy Virtual Addresses
+        Dynamic base
+        NX compatible
+        Terminal Server Aware
+            </pre>
 
-        <p>Recompiling without NX compatibility and ASLR like so, <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>, we can see that the the compiler recognizes them.</p>
+            <p>Recompiling without NX compatibility and ASLR like so, <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>, we can see that the the compiler recognizes them.</p>
 
-        <pre>
-C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO
-Microsoft (R) C/C++ Optimizing Compiler Version 19.36.32537 for x64
-Copyright (C) Microsoft Corporation.  All rights reserved.
+            <pre>
+    C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO
+    Microsoft (R) C/C++ Optimizing Compiler Version 19.36.32537 for x64
+    Copyright (C) Microsoft Corporation.  All rights reserved.
 
-test.c
-Microsoft (R) Incremental Linker Version 14.36.32537.0
-Copyright (C) Microsoft Corporation.  All rights reserved.
+    test.c
+    Microsoft (R) Incremental Linker Version 14.36.32537.0
+    Copyright (C) Microsoft Corporation.  All rights reserved.
 
-/out:test.exe
-/NXCOMPAT:NO
-/DYNAMICBASE:NO
-/HIGHENTROPYVA:NO
-test.obj
-        </pre>
+    /out:test.exe
+    /NXCOMPAT:NO
+    /DYNAMICBASE:NO
+    /HIGHENTROPYVA:NO
+    test.obj
+            </pre>
 
-        <p>That is confirmed with another <span>dumpbin /HEADERS test.exe</span></p>
+            <p>That is confirmed with another <span>dumpbin /HEADERS test.exe</span></p>
 
-        <pre>
-8000 DLL characteristics
-    Terminal Server Aware
-        </pre>
+            <pre>
+    8000 DLL characteristics
+        Terminal Server Aware
+            </pre>
 
-        <p>The moment everyone has been waiting for! We run the program... and it crashes.</p>
+            <p>The moment everyone has been waiting for! We run the program... and it crashes.</p>
 
-        <pre>
-C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>test.exe
-Memory Protection of 000000000014FDD0 (stack): Read, Write
-Memory Protection of 00000000004A4080 (heap):  Read, Write
+            <pre>
+    C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>test.exe
+    Memory Protection of 000000000014FDD0 (stack): Read, Write
+    Memory Protection of 00000000004A4080 (heap):  Read, Write
 
-C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>echo %errorlevel%
--1073741819
-        </pre>
+    C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>echo %errorlevel%
+    -1073741819
+            </pre>
 
-        <p>That error code is the classic access violation <span>0xc0000005</span> and our print statement is not reached. We can comment and uncomment the different run stack, run heap, and virtual protect combinations. I have and I have not been able to get an executable stack or heap without <span>VirtualProtect</span>.</p>
-    </div>
+            <p>The memory is still only <span>RW</span> and we do not reach our post-call print statement. That error code is the classic access violation <span>0xc0000005</span>. We can comment and uncomment the different run stack, run heap, and virtual protect combinations. I have not been able to get an executable stack or heap without <span>VirtualProtect</span>.</p>
+        </div>
 
-<!-- // install visual studio
-// open developer command prompt
-// compile with:
-// cl /guard:cf- /Qspectre- /GS- test.c /link /SAFESEH:NO /GUARD:NO /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO
+        <div>
+            <h2>The Questions</h2>
 
-#include <windows.h>
-#include <stdio.h>
+            <p>Why are there all these DEP and NX options that do nothing? This feels like an exhaustive list of all the places you can disable NX and DEP, but still no executable stack or heap.</p>
 
-void PrintMemoryProtection(DWORD protect) {
-    switch (protect) {
-        case PAGE_EXECUTE:           printf("Execute\n"); break;
-        case PAGE_EXECUTE_READ:      printf("Execute, Read\n"); break;
-        case PAGE_EXECUTE_READWRITE: printf("Execute, Read, Write\n"); break;
-        case PAGE_EXECUTE_WRITECOPY: printf("Execute, Write Copy\n"); break;
-        case PAGE_NOACCESS:          printf("No Access\n"); break;
-        case PAGE_READONLY:          printf("Read Only\n"); break;
-        case PAGE_READWRITE:         printf("Read, Write\n"); break;
-        case PAGE_WRITECOPY:         printf("Write Copy\n"); break;
-        case PAGE_GUARD:             printf("Guard Page\n"); break;
-        case PAGE_NOCACHE:           printf("No Cache\n"); break;
-        case PAGE_WRITECOMBINE:      printf("Write Combine\n"); break;
-        default:                     printf("Unknown protection\n"); break;
-    }
-}
+            <p>The ASLR options work.</p>
 
-int main() {
-    // admin command prompt
-        // bcdedit
-            // nx OptIn
+            <p>I can't help but feel I am missing something. It is probably some high level design decision that was made in Windows Vista. This might just be no longer possible on Windows.</p>
 
-    // docs: If the DEP system policy is OptIn or OptOut 
-        // and DEP is enabled for the process, setting 
-        // dwFlags to 0 disables DEP for the process. 
-    // disable dep
-    SetProcessDEPPolicy(0);
-    
-    MEMORY_BASIC_INFORMATION mbi;
-    char stack_ptr[0x100];
-    char *heap_ptr = (char *)malloc(0x100);
-
-    if (VirtualQuery(stack_ptr, &mbi, sizeof(mbi)) != 0) {
-        printf("Memory Protection of %p (stack): ", stack_ptr);
-        PrintMemoryProtection(mbi.Protect);
-    } else {
-        printf("Error getting memory protection\n");
-    }
-
-    if (VirtualQuery(heap_ptr, &mbi, sizeof(mbi)) != 0) {
-        printf("Memory Protection of %p (heap):  ", heap_ptr);
-        PrintMemoryProtection(mbi.Protect);
-    } else {
-        printf("Error getting memory protection\n");
-    }
-
-    free(heap_ptr);
-
-    return 0;
-}
-
-// and yet...
-// Memory Protection of 000000000014FDE0 (stack): Read, Write
-// Memory Protection of 00000000004743D0 (heap):  Read, Write -->
+            <p>It makes it a bit harder to bring people up in exploitation. Any very basic stack smash on Windows will have to be very contrived. Overall a net positive on the world; our computers are safer and our exploits sell for more.</p>
+        </div>
     </body>
 </html>
 
