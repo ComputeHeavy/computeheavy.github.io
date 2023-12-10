@@ -5,24 +5,24 @@
     </head>
 
     <body>
-        <h1>DEP and NX Always Enabled for 64-bit Windows Processes</h1>
+        <h1>DEP and NX Always Enforced for 64-bit Windows Processes</h1>
 
-        <p>There is no any way to get an executable stack or heap (without <span>VirtualProtect</span>) in a program you compile on Windows 11. I did not know that hardware protection was always on, so I went about trying to disable DEP and NX on an executable I was working on. Spoiler, it does not work.</p>
+        <p>There is no any way to get an executable stack or heap (without <span>VirtualProtect</span>) in a 64-bit program on Windows 11. I went about trying to disable DEP and NX on an executable before I knew that. Spoiler, it does not work.</p>
 
         <p>If you want to follow along you'll need Visual Studio or the Visual Studio Build Tools installed for the the developer command prompt.</p>
 
         <div>
             <h2>The Background</h2>
 
-            <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, made the memory <span>EXECUTE_READWRITE</span>, and moved on with my life.</p>
+            <p>Porting the (not affiliated) <a href="https://pwn.college">pwn.college</a> shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, made the memory <span>EXECUTE_READWRITE</span>, and moved on with my life.</p>
 
-            <p>Eventually I got curious how I could get an executable stack and dove a little deeper. That also led to questions about an executable heap.
+            <p>Eventually I got curious whether I could get an executable stack and dove a little deeper. That also led to questions about an executable heap.</p>
         </div>
 
         <div>
             <h2>The System</h2>
 
-            <p>Some of the documentation talked about the system DEP policy, so let's check that first. Open a Command Prompt as Administrator and check with <span>bcdedit</span>.</p>
+            <p>Some documentation talked about the system DEP policy, so I started there. You need to run Command Prompt as an Administrator then check with <span>bcdedit</span>.</p>
 
             <pre>
 C:\Windows\System32>bcdedit
@@ -69,7 +69,7 @@ An error has occurred setting the element data.
 The value is protected by Secure Boot policy and cannot be modified or deleted.
             </pre>
 
-            <p>After some toil, I decided to switch Secure Boot off in BIOS and set NX to AlwaysOff. This requires a couple reboots.</p>
+            <p>Might as well switch Secure Boot off in BIOS and set NX to AlwaysOff. This requires a couple reboots.</p>
 
             <pre>
 C:\Windows\System32>bcdedit /set nx alwaysoff
@@ -80,16 +80,16 @@ The operation completed successfully.
 
             <p><img src="exploit-protections.png"></p>
 
-            <p>We also add a program specific override.</p>
+            <p>I also added a program specific override.</p>
 
             <p><img src="program-specific-override.png"></p>
         </div>
 
 
         <div>
-            <h2>The Tools</h2>
+            <h2>The Realization</h2>
 
-            <p>We are also going to compile with the linker flag <span>/NXCOMPAT:NO</span> and verify that the NX compatibility is not set on the binary with <span>dumpbin</span>.
+            <p>We are also going to compile with the linker flag <span>/NXCOMPAT:NO</span> and verify that the NX compatibility is not set on the binary with <span>dumpbin</span>.</p>
 
             <p>What clued me off that this might just be impossible is when I came across the API <span>SetProcessDEPPolicy</span>. The <a href="https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setprocessdeppolicy">documentation</a> reads: <span>If the DEP system policy is OptIn or OptOut and DEP is enabled for the process, setting dwFlags to 0 disables DEP for the process.</span> Let me tell you though, it does not.</p> 
 
@@ -129,7 +129,7 @@ void PrintMemoryProtection(DWORD protect) {
 }
 
 int main() {
-    // Not applicable, 32bit only
+    // Not applicable, 32-bit only
     SetProcessDEPPolicy(0);
     
     MEMORY_BASIC_INFORMATION mbi;
@@ -175,7 +175,7 @@ int main() {
 }
             </pre>
 
-            <p>We will be compiling with <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>. Turning off ASLR does work for 64bit processes.</p>
+            <p>We will be compiling with <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>. Turning off ASLR does work for 64-bit processes.</p>
         </div>
 
         <div>
@@ -227,13 +227,15 @@ int main() {
     -1073741819
             </pre>
 
-            <p>The memory is still only <span>RW</span> and we do not reach our post-call print statement. That error code is our dear friend <span>STATUS_ACCESS_VIOLATION</span> <span>0xc0000005</span>. We can comment and uncomment the different run stack, run heap, and virtual protect combinations.</p>
+            <p>The memory is still only <span>RW</span> and we do not reach our post-call print statement. That error code is our dear friend <span>STATUS_ACCESS_VIOLATION</span> <span>0xc0000005</span>. We can comment and uncomment the different run stack, run heap, and virtual protect combinations to validate we are not slowly losing our mind.</p>
         </div>
 
         <div>
             <h2>The End</h2>
 
-            <p>I dove into this thinking it would be possible to get an executable stack and heap on modern Windows. It was a ton of trial and error before I found a doc that explained that this was just the way of the world now. While it makes it impossible to make a trivial 64bit stack smash on Windows, it is for the best. This makes our computers more secure and our bugs more valuable.</p>
+            <p>Overall a negative result for what I was attempting, but a positive result for security. It took a decent amount of fiddling with settings before I found the doc that explained that this was just the way of the world now.</p>
+
+            <p>While it makes it impossible to make a trivial 64-bit stack smash on Windows, it is for the best. This makes our computers more secure and our bugs more valuable.</p>
         </div>
     </body>
 </html>
