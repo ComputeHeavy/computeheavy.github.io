@@ -54,7 +54,7 @@
         <div>
             <h2>Environment</h2>
 
-            <p>Some of the documentation talked about the system DEP policy, so let's check that first. Open a Command Prompt as Administrator and check with bcdedit.</p>
+            <p>Some of the documentation talked about the system DEP policy, so let's check that first. Open a Command Prompt as Administrator and check with <span>bcdedit</span>.</p>
 
             <pre>
 C:\Windows\System32>bcdedit
@@ -125,13 +125,17 @@ The operation completed successfully.
         <div>
             <h2>The Tools</h2>
 
-            <p>First, we have the API <span>SetProcessDEPPolicy</span>.
+            <p>First, we have the API <span>SetProcessDEPPolicy</span>. The <a href="https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setprocessdeppolicy">documentation</a> reads: <span>If the DEP system policy is OptIn or OptOut and DEP is enabled for the process, setting dwFlags to 0 disables DEP for the process.</span> Let me tell you, it does not.</p>
+
+            <p>We are also going to compile with the linker flag <span>/NXCOMPAT:NO</span> and verify that the NX compatibility is not set on the binary with <span>dumpbin</span>.
         </div>
 
         <div>
             <h2>Test Program</h2>
 
             <p>First, I would like to apologize. I just started this company and cannot afford syntax highlighting at this time.</p>
+
+            <p>This program queries a pointer for its memory protections and prints them out. It declares a stack pointer and a heap pointer and sets them up with a nop sled (<span>0x90</span>) and return (<span>0xC3</span>). <i>Note, x86/64 opcodes, will not work on ARM.</i> The program then prints out their memory protections. Following that, we crash our program by casting our memory regions as function pointers and calling them. The commented out <span>VirtualProtect</span> calls are there so you can verify that these do run when the stack and heap regions are <span>EXECUTE_READWRITE</span>.</p>
 
             <pre>
 #include &lt;windows.h&gt;
@@ -155,15 +159,21 @@ void PrintMemoryProtection(DWORD protect) {
 }
 
 int main() {
-    // docs: If the DEP system policy is OptIn or OptOut 
-        // and DEP is enabled for the process, setting 
-        // dwFlags to 0 disables DEP for the process. 
-    // disable dep
     SetProcessDEPPolicy(0);
     
     MEMORY_BASIC_INFORMATION mbi;
-    char stack_ptr[0x100];
-    char *heap_ptr = (char *)malloc(0x100);
+    BYTE stack_ptr[0x100];
+    PBYTE heap_ptr = (PBYTE)malloc(0x100);
+
+    for (int i=0; i<0x100; i++) {
+        stack_ptr[i] = 0x90; // nop
+    }
+    stack_ptr[0xFF] = 0xC3; // ret
+
+    for (int i=0; i<0x100; i++) {
+        heap_ptr[i] = 0x90; // nop
+    }
+    heap_ptr[0xFF] = 0xC3; // ret
 
     if (VirtualQuery(stack_ptr, &mbi, sizeof(mbi)) != 0) {
         printf("Memory Protection of %p (stack): ", stack_ptr);
@@ -179,11 +189,22 @@ int main() {
         printf("Error getting memory protection\n");
     }
 
+    DWORD oldProtect;
+    // VirtualProtect(stack_ptr, 0x100, PAGE_EXECUTE_READWRITE, &oldProtect);
+    ((void (*)())stack_ptr)();
+
+    // VirtualProtect(heap_ptr, 0x100, PAGE_EXECUTE_READWRITE, &oldProtect);
+    ((void (*)())heap_ptr)();
+
+    printf("ExeCUTEd!\n");
+
     free(heap_ptr);
 
     return 0;
 }
         </pre>
+
+        <p>We will be compiling with <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>. Turning off ASLR does work.</p>
     </div>
 
 <!-- // install visual studio
