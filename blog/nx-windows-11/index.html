@@ -46,7 +46,7 @@
 
         <div>
             <h2>Background</h2>
-            <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, changed it to <span>EXECUTE_READWRITE</span> and moved on with my life.</p>
+            <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, made it <span>EXECUTE_READWRITE</span>, and moved on with my life.</p>
 
             <p>Eventually I got curious how I could get an executable stack and dove a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.
         </div>
@@ -93,7 +93,7 @@ resumeobject            {9378e909-ec67-49fd-ab7b-46c2525300e3}
 bootmenupolicy          Standard
             </pre>
 
-            <p>Note the <span>nx OptIn</span> line. Using <span>bcdedit /set nx optout</span> works. Due to Secure Boot through, I cannot set it to <span>AlwaysOff</span>. So once again, Secure Boot ruins all our fun.</p>
+            <p>Note the <span>nx OptIn</span> line. Using <span>bcdedit /set nx OptOut</span> works. Due to Secure Boot through, I cannot set it to <span>AlwaysOff</span>. So once again, Secure Boot ruins all our fun.</p>
 
             <pre>
 C:\Windows\System32>bcdedit /set nx alwaysoff
@@ -101,11 +101,35 @@ An error has occurred setting the element data.
 The value is protected by Secure Boot policy and cannot be modified or deleted.
             </pre>
 
-            <p>We should still be able to do this with <span>OptIn</span> though, right? ...right?</p>
+            <p>We should still be able to do this with <span>OptIn</span> though, right?</p>
+            
+            <p>...right?</p>
+
+            <p>Let's not give Windows any excuses. I disabled Secure Boot in BIOS, set NX to AlwaysOff, and rebooted.</p>
+
+            <pre>
+C:\Windows\System32>bcdedit /set nx alwaysoff
+The operation completed successfully.
+            </pre>
+
+            <p>In addition, we open the Exploit Protections menu. Since Windows messed around with Control Panel (perfect) and added Settings (awful) on top of it, who knows what this changes, but let's set DEP to off and also put in a program specific override.</p>
+
+            <p><img src="exploit-protections.png"></p>
+            
+            <p><img src="program-specific-override.png"></p>
+        </div>
+
+
+        <div>
+            <h2>The Tools</h2>
+
+            <p>First, we have the API <span>SetProcessDEPPolicy</span>.
         </div>
 
         <div>
             <h2>Test Program</h2>
+
+            <p>First, I would like to apologize. I cannot afford snytax highlighting at this time.</p>
 
             <pre>
 #include &lt;windows.h&gt;
