@@ -15,6 +15,11 @@
                 width: 600px;
             }
 
+            i {
+                background-color: #444;
+                font-size: 16px;
+            }
+
             a:link {
                 color: white;
             }
@@ -41,9 +46,9 @@
 
         <div>
             <h2>Background</h2>
-            <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option /NXCOMPAT:NO would give an executable stack. When it did not I hit it with the old VirtualProtect, changed it to EXECUTE_READWRITE and moved on.</p>
+            <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <i>/NXCOMPAT:NO</i> would give an executable stack. When it did not I hit it with the old <i>VirtualProtect</i>, changed it to <i>EXECUTE_READWRITE</i> and moved on with my life.</p>
 
-            <p>Eventually I got curious if I <i>could</i> get an executable stack and started diving a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.
+            <p>Eventually I got curious how I could get an executable stack and dove a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.
         </div>
 
         <div>
