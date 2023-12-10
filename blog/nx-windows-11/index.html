@@ -40,19 +40,22 @@
 
     <body>
         <h1>Executable Stack or Heap on Windows 11</h1>
-        <p>Putting this out there to see if anyone has any ideas. I don't think there is any way to get an executable stack or heap (without VirtualProtect) in a program you compile on Windows 11.</p>
+
+        <p>I do not think there is any way to get an executable stack or heap (without <span>VirtualProtect</span>) in a program you compile on Windows 11. Turning off DEP and NX everywhere I can, I have not been able to produce an executable stack or heap.</p> 
+
+        <p>Not sure if I am missing something, if this is an opinionated system change (why have all the options then?), or if this is a Windows bug. If anyone has any ideas, get in touch.</p>
 
         <p>If you want to follow along you'll need Visual Studio or the Visual Studio Build Tools installed for the the developer command prompt.</p>
 
         <div>
-            <h2>Background</h2>
+            <h2>The Background</h2>
             <p>Porting the <a href="https://pwn.college">pwn.college</a> (not affiliated) shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, made it <span>EXECUTE_READWRITE</span>, and moved on with my life.</p>
 
             <p>Eventually I got curious how I could get an executable stack and dove a little deeper. That also led to questions about an executable heap. After some investigation, my current assertion is that <b>it is not possible to get an executable stack or heap on Windows 11</b>.
         </div>
 
         <div>
-            <h2>Environment</h2>
+            <h2>The System</h2>
 
             <p>Some of the documentation talked about the system DEP policy, so let's check that first. Open a Command Prompt as Administrator and check with <span>bcdedit</span>.</p>
 
@@ -105,7 +108,7 @@ The value is protected by Secure Boot policy and cannot be modified or deleted.
             
             <p>...right?</p>
 
-            <p>Let's not give Windows any excuses. I disabled Secure Boot in BIOS, set NX to AlwaysOff, and rebooted.</p>
+            <p>I tried it, so to not give Windows any excuses in this post, I disabled Secure Boot in BIOS, set NX to AlwaysOff, and rebooted.</p>
 
             <pre>
 C:\Windows\System32>bcdedit /set nx alwaysoff
@@ -125,7 +128,7 @@ The operation completed successfully.
         <div>
             <h2>The Tools</h2>
 
-            <p>First, we have the API <span>SetProcessDEPPolicy</span>. The <a href="https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setprocessdeppolicy">documentation</a> reads: <span>If the DEP system policy is OptIn or OptOut and DEP is enabled for the process, setting dwFlags to 0 disables DEP for the process.</span> Let me tell you, it does not.</p>
+            <p>First, we have the API <span>SetProcessDEPPolicy</span>. The <a href="https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setprocessdeppolicy">documentation</a> reads: <span>If the DEP system policy is OptIn or OptOut and DEP is enabled for the process, setting dwFlags to 0 disables DEP for the process.</span> Let me tell you though, it does not.</p>
 
             <p>We are also going to compile with the linker flag <span>/NXCOMPAT:NO</span> and verify that the NX compatibility is not set on the binary with <span>dumpbin</span>.
         </div>
@@ -135,7 +138,9 @@ The operation completed successfully.
 
             <p>First, I would like to apologize. I just started this company and cannot afford syntax highlighting at this time.</p>
 
-            <p>This program queries a pointer for its memory protections and prints them out. It declares a stack pointer and a heap pointer and sets them up with a nop sled (<span>0x90</span>) and return (<span>0xC3</span>). <i>Note, x86/64 opcodes, will not work on ARM.</i> The program then prints out their memory protections. Following that, we crash our program by casting our memory regions as function pointers and calling them. The commented out <span>VirtualProtect</span> calls are there so you can verify that these do run when the stack and heap regions are <span>EXECUTE_READWRITE</span>.</p>
+            <p>This program queries a pointer for its memory protections and prints them out. It declares a stack pointer and a heap pointer and sets them up with a nop sled (<span>0x90</span>) and return (<span>0xC3</span>). <i>Note, x86/64 opcodes, will not work on ARM.</i> The program then prints out their memory protections.</p>
+
+            <p>Following that, we crash our program by casting our memory regions as function pointers and calling them. The commented out <span>VirtualProtect</span> calls are there so you can verify that these do run when the stack and heap regions are <span>EXECUTE_READWRITE</span>. Finally, there is a cute little print statement so we can see if the regions ran to completion.</p>
 
             <pre>
 #include &lt;windows.h&gt;
@@ -207,21 +212,62 @@ int main() {
         <p>We will be compiling with <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>. Turning off ASLR does work.</p>
     </div>
 
+    <div>
+        <h2>The Results</h2>
+
+        <p>First, if we compile a plain executable with <span>cl test.c</span>, then run <span>dumpbin /HEADERS text.exe</span> we see the following <span>DLL Characteristics</span>.</p>
+
+        <pre>
+8160 DLL characteristics
+    High Entropy Virtual Addresses
+    Dynamic base
+    NX compatible
+    Terminal Server Aware
+        </pre>
+
+        <p>Recompiling without NX compatibility and ASLR like so, <span>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO</span>, we can see that the the compiler recognizes them.</p>
+
+        <pre>
+C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>cl test.c /link /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO
+Microsoft (R) C/C++ Optimizing Compiler Version 19.36.32537 for x64
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+test.c
+Microsoft (R) Incremental Linker Version 14.36.32537.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+/out:test.exe
+/NXCOMPAT:NO
+/DYNAMICBASE:NO
+/HIGHENTROPYVA:NO
+test.obj
+        </pre>
+
+        <p>That is confirmed with another <span>dumpbin /HEADERS test.exe</span></p>
+
+        <pre>
+8000 DLL characteristics
+    Terminal Server Aware
+        </pre>
+
+        <p>The moment everyone has been waiting for! We run the program... and it crashes.</p>
+
+        <pre>
+C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>test.exe
+Memory Protection of 000000000014FDD0 (stack): Read, Write
+Memory Protection of 00000000004A4080 (heap):  Read, Write
+
+C:\Users\user\Documents\Development\pwncollege-win\shellcode-injection>echo %errorlevel%
+-1073741819
+        </pre>
+
+        <p>That error code is the classic access violation <span>0xc0000005</span> and our print statement is not reached. We can comment and uncomment the different run stack, run heap, and virtual protect combinations. I have and I have not been able to get an executable stack or heap without <span>VirtualProtect</span>.</p>
+    </div>
+
 <!-- // install visual studio
 // open developer command prompt
 // compile with:
 // cl /guard:cf- /Qspectre- /GS- test.c /link /SAFESEH:NO /GUARD:NO /NXCOMPAT:NO /DYNAMICBASE:NO /HIGHENTROPYVA:NO
-
-// confirm no nx with dumpbin
-// 8000 DLL characteristics
-//     Terminal Server Aware
-
-// versus standard (cl test.c)
-// 8160 DLL characteristics
-//     High Entropy Virtual Addresses
-//     Dynamic base
-//     NX compatible
-//     Terminal Server Aware
 
 #include <windows.h>
 #include <stdio.h>
