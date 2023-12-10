@@ -228,7 +228,7 @@ int main() {
     -1073741819
             </pre>
 
-            <p>The memory is still only <span>RW</span> and we do not reach our post-call print statement. That error code is the classic access violation <span>0xc0000005</span>. We can comment and uncomment the different run stack, run heap, and virtual protect combinations. I have not been able to get an executable stack or heap without <span>VirtualProtect</span>.</p>
+            <p>The memory is still only <span>RW</span> and we do not reach our post-call print statement. That error code is our dear friend <span>STATUS_ACCESS_VIOLATION</span> <span>0xc0000005</span> (pronounced in my head as c-thousand-and-five). We can comment and uncomment the different run stack, run heap, and virtual protect combinations. I have not been able to get an executable stack or heap without <span>VirtualProtect</span>.</p>
         </div>
 
         <div>
