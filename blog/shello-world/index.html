@@ -1,0 +1,370 @@
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+        <link rel="stylesheet" href="/site.css">
+    </head>
+
+    <body>
+        <h1>Windows x86 and x64 null-free position-independent shellcode</h1>
+
+        <p>These are hello world shellcodes that lay some foundation for building upon. They navigate the TEB and PEB in order to get kernel32.dll, find two functions (<span>GetStdHandle</span>, <span>WriteFile</span>) using a weak hash of their name, then call those functions to print a message. There are some techniques used to keep them null free.</p>
+
+        <div>
+            <h2>Null-free PIC</h2>
+
+            <p>Shellcode is often passed through string processing functions, so having nulls in the assembled code will result in having only part of your code copied in. Similarly, it is running at some arbitrary address in memory, so it cannot reference things relative to where it is. So it must also be position independent.</p>
+
+            <p>To get rid of nulls we use some common tricks that make our assembly a little less natural. To move a low value into a register, we don't want to move <span>0x41</span> into a 64 bit register because the instruction will encode the number as <span>0x0000000000000041</span>. Instead, we xor the register with itself to zero out the high bits, then use a smaller addressable piece of the register to move the value in, for example, <span>mov al, 041h</span></p>
+
+            <p>To be position independent, we want to grab the instruction pointer at a known location in our code and find things relative to that. To get <span>EIP</span> (32 bit) or <span>RIP</span> (64 bit), we will do a <span>call</span> then pop the address of the next instruction (the return address) off the stack. One issue is that calls to nearby instructions that are going forward in the code will have zeros in the opcodes since they are relative. We can, however, <span>jmp</span> then <span>call</span> backward to avoid nulls.</p>
+        </div>
+
+        <pre>
+; align stack to 16 bytes for call
+stack_align MACRO
+    mov rbx, rsp
+    and rbx, 0Fh
+    sub rsp, rbx
+ENDM
+
+; unalign from 16 bytes
+; used for calls with odd 
+; number of arguments gt 4
+stack_unalign MACRO
+    mov rbx, rsp
+    add bl, 8
+    and rbx, 0Fh
+    sub rsp, rbx
+ENDM
+
+; undo whatever align/ unalign
+reset_align MACRO
+    add rsp, rbx
+ENDM
+
+; create shadow space
+sub_shadow MACRO
+    sub rsp, 20h
+ENDM
+
+; clear shadow space
+add_shadow MACRO
+    add rsp, 20h
+ENDM
+
+scall MACRO fn
+    sub_shadow
+    call fn
+    add_shadow
+ENDM
+
+prologue MACRO
+    push rbp
+    mov rbp, rsp
+    push rbx
+    push rdi
+    push rsi
+ENDM
+
+epilogue MACRO
+    pop rsi
+    pop rdi
+    pop rbx
+    mov rsp, rbp
+    pop rbp
+ENDM
+
+; preserve
+; RBX, RBP, RDI, RSI, RSP, R12, R13, R14, R15
+
+; rcx, rdx, r8, r9
+; un/align
+; stack args
+; shadow
+; call
+; unshadow
+; un args
+; reset align
+
+.CODE
+
+start:
+    prologue
+    jmp get_exports
+based:
+    message db 'Shello World!', 0Ah, 0Ah
+    msglen db $-message
+    author db 'TACIXAT'
+    nop
+    nop
+get_exports:
+    xor rax, rax
+    mov rax, gs:[rax+60h] ; PEB
+    mov rax, [rax+18h] ; LDR
+    mov rcx, [rax+20h] ; program
+    mov rax, [rcx] ; ntdll
+    mov rcx, [rax] ; kernel32
+    mov rax, [rcx+20h] ; base address
+    xor rcx, rcx
+    mov ecx, [rax+3Ch] ; ntheader offset
+    lea rcx, [rax+rcx] ; ntheader
+    xor r8, r8
+    mov r8b, 088h
+    xor rdx, rdx
+    mov edx, [rcx+r8] ; export directory offset
+    lea rdi, [rax+rdx] ; export directory
+search:
+    xor rdx, rdx
+    mov edx, [rdi+1Ch] ; function addresses offset
+    lea rdx, [rax+rdx] ; pointer to function addresses
+    push rdx
+    xor rdx, rdx
+    mov edx, [rdi+24h] ; ordinals offset
+    lea rdx, [rax+rdx] ; pointer to ordinals
+    push rdx
+    xor rdx, rdx
+    mov edx, [rdi+20h] ; name rvas offset
+    lea rcx, [rax+rdx] ; pointer to name RVAs
+find_func:
+    xor r9, r9 ; scratch
+    xor r10, r10 ; name pointer
+    xor r8, r8 ; counter
+    dec r8
+    xor rdi, rdi ; target
+    mov edi, 0AE72FD6Fh ; WriteFile
+    xor rsi, rsi
+    mov esi, 0B43C4D5Ch ; GetStdHandle
+check_name:
+    inc r8
+    xor rdx, rdx ; hash
+    mov r10, rax ; module base
+    mov r9d, [rcx+r8*4] ; rva
+    add r10, r9 ; name
+    xor r9, r9 ; zero
+loop_chars:
+    ; hash
+    rol edx, 5 
+    xor dl, [r10] ; chr
+    inc r10 ; next chr
+    cmp r9b, [r10] ; cmp null
+    jne loop_chars ; keep hashing
+    cmp edx, esi ; cmp getstdhandle hash
+    je found_stdout
+    cmp edx, edi ; cmp write file hash
+    je found_writef
+    jmp check_name ; next function
+found_stdout:
+    push r8 ; save getstdhandle idx
+    jmp check_name ; next function
+found_writef:
+    ; writefile index in r8
+    pop r9 ; getstdhandle in r9
+    pop rcx ; pointer to ordinals
+    mov r8w, [rcx+r8*2] ; writefile ord
+    mov r9w, [rcx+r9*2] ; getstdhandle ord
+    pop rcx ; pointer to RVAs
+    mov r8d, [rcx+r8*4] ; writefile rva
+    mov r9d, [rcx+r9*4] ; getstdhandle rva
+    add r8, rax ; writefile pointer
+    push r8 ; save writefile
+    add r9, rax ; getstdhandle pointer
+    xor rcx, rcx
+    xor r11, r11
+    mov r11b, 0Bh
+    sub ecx, r11d ; stdout is -11 as a UINT32
+    stack_align
+    scall r9 ; call getstdhandle
+    reset_align
+    push rax ; save stdhandle
+    jmp j_get_message
+get_message:
+    ; get_rip addr on stack
+    pop r8
+    xor rax, rax
+    mov eax, 41414141h + offset get_message_ret - offset msglen
+    sub eax, 41414141h 
+    sub r8, rax ; pointer to msglen
+    mov rdx, r8 
+    xor r8, r8
+    mov r8b, [rdx] ; msglen
+    sub rdx, r8 ; pointer to message
+    jmp get_message_ret
+j_get_message:
+    call get_message
+get_message_ret:
+    pop rcx ; stdhandle
+    pop rsi ; writefile pointer
+    xor r9, r9 ; out NULL
+    stack_unalign
+    push r9 ; reserved NULL
+    scall rsi
+    reset_align
+    epilogue
+    ret
+db 0DEh, 0ADh, 0BEh, 0EFh
+end
+        </pre>
+
+        <pre>
+prologue MACRO
+    push ebp
+    push ebx
+    push edi
+    push esi
+    mov ebp, esp
+ENDM
+
+epilogue MACRO
+    mov esp, ebp
+    pop esi
+    pop edi
+    pop ebx
+    pop ebp
+ENDM
+
+.MODEL flat, stdcall
+.CODE
+
+start:
+    prologue
+    sub esp, 20h
+    ; [ebp-04h] module_base
+    ; [ebp-08h] function_addresses
+    ; [ebp-0Ch] ordinals
+    ; [ebp-10h] name_rvas
+    ; [ebp-14h] hash_write_file
+    ; [ebp-18h] hash_get_std_handle
+    ; [ebp-1Ch] idx_write_file
+    ; [ebp-20h] idx_get_std_handle
+    jmp get_exports
+based:
+    message db 'Shello World! (x86)', 0Ah, 0Ah
+    msglen db $-message
+    author db 'TACIXAT'
+    nop
+    nop
+get_exports:
+    ASSUME FS:NOTHING
+    xor eax, eax
+    mov eax, fs:[eax+30h] ; PEB
+    mov eax, [eax+0Ch] ; LDR
+    mov ecx, [eax+14h] ; program
+    mov eax, [ecx] ; ntdll
+    mov ecx, [eax] ; kernel32
+    mov eax, [ecx+10h] ; base address
+    mov [ebp-04h], eax ; [ebp-04h]
+    xor ecx, ecx
+    mov ecx, [eax+3Ch] ; ntheader offset
+    lea ecx, [eax+ecx] ; ntheader
+    xor edi, edi
+    mov di, 04179h 
+    sub di, 04101h
+    xor edx, edx
+    mov edx, [ecx+edi] ; export directory offset
+    lea edi, [eax+edx] ; export directory
+search:
+    xor edx, edx
+    ; these offsets are wrong
+    mov edx, [edi+1Ch] ; function addresses offset
+    lea edx, [eax+edx] ; pointer to function addresses 
+    mov [ebp-08h], edx ; [ebp-08h]
+    xor edx, edx
+    mov edx, [edi+24h] ; ordinals offset
+    lea edx, [eax+edx] ; pointer to ordinals
+    mov [ebp-0Ch], edx ; [ebp-0Ch]
+    xor edx, edx
+    mov edx, [edi+20h] ; name rvas offset
+    lea ecx, [eax+edx] ; pointer to name RVAs
+    mov [ebp-10h], ecx ; [ebp-10h]
+find_func:
+    mov eax, 0AE72FD6Fh
+    mov [ebp-14h], eax ; hash WriteFile
+    mov eax, 0B43C4D5Ch
+    mov [ebp-18h], eax ; hash GetStdHandle
+    xor eax, eax ; scratch
+    xor esi, esi ; name pointer
+    xor ecx, ecx ; counter
+    dec ecx
+check_name:
+    inc ecx
+    xor edx, edx ; hash
+    mov eax, [ebp-04h]
+    mov esi, eax ; module base
+    mov edi, [ebp-10h]
+    mov eax, [edi+ecx*4] ; rva
+    add esi, eax ; name
+    xor eax, eax
+loop_chars:
+    ; hash
+    rol edx, 5 
+    xor dl, [esi] ; chr
+    inc esi ; next chr
+    cmp al, [esi] ; cmp null
+    jne loop_chars ; keep hashing
+    mov edi, [ebp-18h]
+    cmp edx, edi ; cmp GetStdHandle hash
+    je found_stdout
+    mov edi, [ebp-14h]
+    cmp edx, edi ; cmp WriteFile hash
+    je found_writef
+    jmp check_name ; next function
+found_stdout:
+    mov [ebp-20h], ecx ; save GetStdHandle idx
+    jmp check_name ; next function
+found_writef:
+    ; WriteFile index in ecx
+    mov [ebp-1Ch], ecx ; store WriteFile index
+    mov ecx, [ebp-0Ch] ; pointer to ords
+    mov esi, [ebp-20h] ; GetStdHandle index
+    mov si, [ecx+esi*2] ; GetStdHandle ord
+    mov ecx, [ebp-08h] ; pointer to RVAs
+    mov esi, [ecx+esi*4] ; GetStdHandle RVA
+    mov eax, [ebp-04h] ; base address
+    add esi, eax ; GetStdHandle pointer
+    xor ecx, ecx
+    xor eax, eax
+    mov al, 0Bh
+    sub ecx, eax ; stdout is -11
+    push ecx ; GetStdHandle arg0
+    call esi ; call GetStdHandle
+    ; stdout in eax
+    push eax ; arg0 WriteFile
+    jmp j_get_message
+get_message:
+    ; get_rip addr on stack
+    pop esi
+    xor eax, eax
+    mov eax, 41414141h + offset get_message_ret - offset msglen
+    sub eax, 41414141h 
+    sub esi, eax ; pointer to msglen
+    xor ecx, ecx
+    mov cl, [esi] ; ecx holds msglen
+    sub esi, ecx ; esi holds pointer to message
+    pop eax ; arg0 WriteFile
+    xor edx, edx
+    push edx ; arg4 WriteFile
+    push edx ; arg3 WriteFile
+    push ecx ; arg2 WriteFile
+    push esi ; arg1 WriteFile
+    push eax ; arg0 WriteFile
+    jmp get_message_ret
+j_get_message:
+    call get_message
+get_message_ret:
+    mov ecx, [ebp-0Ch] ; pointer to ords
+    mov esi, [ebp-1Ch] ; WriteFile index
+    xor edi, edi
+    mov di, [ecx+esi*2] ; WriteFile ord
+    mov ecx, [ebp-08h] ; pointer to RVAs
+    mov esi, [ecx+edi*4] ; WriteFile RVA
+    mov eax, [ebp-04h] ; base address
+    add esi, eax ; WriteFile pointer
+    call esi
+    epilogue
+    ret
+db 0DEh, 0ADh, 0BEh, 0EFh
+end
+        </pre>
+    </body>
+</html>
+
