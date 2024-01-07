@@ -14,9 +14,9 @@
         <div>
             <h2>The Background</h2>
 
-            <p>Porting the (not affiliated) <a href="https://pwn.college">pwn.college</a> shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, made the memory <span>EXECUTE_READWRITE</span>, and moved on with my life.</p>
+            <p>Porting some (not affiliated) <a href="https://pwn.college">pwn.college</a> shellcode exercises to Windows right now. These challenges take some shellcode, place it in a stack variable, and run it. I initially thought the linker option <span>/NXCOMPAT:NO</span> would give an executable stack. When it did not I hit it with the old <span>VirtualProtect</span>, made the memory <span>EXECUTE_READWRITE</span>, and moved on with my life.</p>
 
-            <p>Eventually I got curious whether I could get an executable stack and dove a little deeper. That also led to questions about an executable heap.</p>
+            <p>Eventually I got curious whether I could get an executable stack and dove a little deeper. That also led to questions about an executable heap. It turns out that DEP is always enforced on 64-bit Windows no matter what.</p>
         </div>
 
         <div>
@@ -69,7 +69,7 @@ An error has occurred setting the element data.
 The value is protected by Secure Boot policy and cannot be modified or deleted.
             </pre>
 
-            <p>Might as well switch Secure Boot off in BIOS and set NX to AlwaysOff. This requires a couple reboots.</p>
+            <p>Might as well switch Secure Boot off in BIOS and set NX to AlwaysOff. This requires a couple of reboots.</p>
 
             <pre>
 C:\Windows\System32>bcdedit /set nx alwaysoff
@@ -88,8 +88,6 @@ The operation completed successfully.
 
         <div>
             <h2>The Realization</h2>
-
-            <p>We are also going to compile with the linker flag <span>/NXCOMPAT:NO</span> and verify that the NX compatibility is not set on the binary with <span>dumpbin</span>.</p>
 
             <p>What clued me off that this might just be impossible is when I came across the API <span>SetProcessDEPPolicy</span>. The <a href="https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-setprocessdeppolicy">documentation</a> reads: <span>If the DEP system policy is OptIn or OptOut and DEP is enabled for the process, setting dwFlags to 0 disables DEP for the process.</span> Let me tell you though, it does not.</p> 
 
@@ -235,7 +233,7 @@ int main() {
 
             <p>Overall a negative result for what I was attempting, but a positive result for security. It took a decent amount of fiddling with settings before I found the doc that explained that this was just the way of the world now.</p>
 
-            <p>While it makes it impossible to make a trivial 64-bit stack smash on Windows, it is for the best. This makes our computers more secure and our bugs more valuable.</p>
+            <p>While it makes it impossible to develop an educational 64-bit stack smash on Windows, it is for the best. This makes our computers more secure and our bugs more valuable.</p>
         </div>
     </body>
 </html>
