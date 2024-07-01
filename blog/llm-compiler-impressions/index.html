@@ -47,10 +47,12 @@
 
             <p>As mentioned above, there are four prompts.</p>
 
+            <p>The first translates from LLVM IR to LLVM IR given some optimization passes.</p>
+
             <pre>
 <div style="white-space:pre;font-family:Consolas;color:#d8dee9;background-color:#303841;-moz-tab-size:4;tab-size:4;"><span style="color:#99c794;">[</span><span style="color:#99c794;">INST] </span><span style="color:#99c794;">Give </span><span style="color:#99c794;">the </span><span style="color:#99c794;">LLVM-IR </span><span style="color:#99c794;">for </span><span style="color:#99c794;">the </span><span style="color:#99c794;">following </span><span style="color:#99c794;">code </span><span style="color:#99c794;">when </span><span style="color:#99c794;">optimized </span><span style="color:#99c794;">using </span><span style="color:#99c794;">opt </span><span style="color:#99c794;">-p </span><span style="color:#99c794;">'</span><span style="color:#ffffff;">{</span>passes<span style="color:#ffffff;">}</span><span style="color:#99c794;">':</span><br><br><span style="color:#99c794;">&lt;</span><span style="color:#99c794;">code></span><span style="color:#ffffff;">{</span>ir<span style="color:#ffffff;">}</span><span style="color:#99c794;">&lt;/code></span><br><br><span style="color:#99c794;">The </span><span style="color:#99c794;">input </span><span style="color:#99c794;">code </span><span style="color:#99c794;">has </span><span style="color:#99c794;">instruction </span><span style="color:#99c794;">count </span><span style="color:#ffffff;">{</span>ir_count<span style="color:#ffffff;">}</span><span style="color:#99c794;"> </span><span style="color:#99c794;">and </span><span style="color:#99c794;">binary </span><span style="color:#99c794;">size </span><span style="color:#ffffff;">{</span>bin_size<span style="color:#ffffff;">}</span><span style="color:#99c794;"> </span><span style="color:#99c794;">bytes. </span><span style="color:#99c794;">[/INST]</span></div>
             </pre>            
-            
+
         </div>
 
         <div>
