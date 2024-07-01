@@ -1,0 +1,86 @@
+<html>
+    <head>
+        <meta name="twitter:site" content="@TACIXAT" />
+        <meta name="twitter:title" content="LLM Compiler - First Impressions" />
+        <meta name="twitter:description" content="LLM Compiler usage and evaluation." />
+        <meta name="twitter:image" content="https://computeheavy.com/blog/assets/llm-compiler-fi.webp" />
+
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+        <link rel="stylesheet" href="/site.css">
+    </head>
+
+    <body>
+        <h1>LLM Compiler - First Impressions</h1>
+
+        <p>It is an official opinion at Compute Heavy Industries that machine language research, as opposed to natural language research, is the most viable path toward programmable general intelligence. That being said, we were very excited about the release of Meta AI's LLM Compiler.</p>
+
+        <p>We are in a unique position to dive into this model, with a deep background in application security and more recent work in around the automation of code generation models.</p> 
+
+        <p>That being said, this is a cursory review with a small sample size.</p>
+
+        <div>
+            <h2>LLM Compiler</h2>
+
+            <p>Meta's LLM Compiler is a llama-architecture model trained on LLVM intermediate representation (IR) and (primarily) Linux x86-64 assembly code. If you are unfamiliar with LLVM, it is a compiler framework consisting of frontends that convert the source code of different programming languages (e.g. C, C++, Rust, etc.) to LLVM IR, and backends that convert LLVM IR to different assembly architectures (e.g. x86-64, ARM, WASM, etc.).</p>
+
+            <p>LLVM, being a compiler framework, allows you to write passes over the LLVM IR to analyze and optimize it. This is a pretty attractive concept for security researchers. If you can find bugs via analyzing the LLVM, you get many languages for free. Further, there is research around lifting assembly code into LLVM IR under the same premise. If you can lift different targets into LLVM IR, you only need to write your analyses for a single target and you get many architectures for free.</p>
+
+            <p>Back to the LLM Compiler model. Its primary focus is on taking LLVM IR and outputting LLVM IR or x86-64 assembly given some optimization passes as parameters. Additionally, Meta made a finetune for lifting code from assembly to LLVM IR (very cool!). Our work highlighted in this post focuses solely on the translation of LLVM IR to assembly.</p>
+
+            <p>The last thing to note is that the model has a context window of 16k tokens.</p>
+        </div>
+
+        <div>
+            <h2>Setup</h2>
+
+            <p>Since LLM Compiler targets x86-64 Linux assembly, we used LLVM in Windows Subsytem for Linux (WSL). Specifically, we were using <a href="https://apt.llvm.org/">LLMV 18</a>.</p>
+
+            <p>To run the model we used <a href="https://github.com/ggerganov/llama.cpp">llama.cpp</a>. We initially tried with HuggingFace but it did not work, likely because Python is bad. We converted the models for llama.cpp and the model ran without issue.</p>
+
+            <p>There are a few releases of the model. The <span>*-ftd</span> models are the fine tunes for flag tuning and lifting assembly to LLVM IR. We ran the 7b base model.</p>
+
+            <p>For the hardware, we used a RTX 3090. The 7b model ran performantly at ~40 tok/s. It appeared that the 13b model exceeded 24 GB of GPU memory during inference.</p>
+        </div>
+
+        <div>
+            <h2>The Prompts</h2>
+
+            <p></p>
+        </div>
+
+        <div>
+            <h2>Our Test Program</h2>
+
+            <p></p>
+        </div>
+
+        <div>
+            <h2>Prompt Parameters</h2>
+
+            <p></p>
+        </div>
+
+        <div>
+            <h2>Inference</h2>
+
+            <p></p>
+        </div>
+
+        <div>
+            <h2>Evaluation</h2>
+
+            <p></p>
+        </div>
+
+        <div>
+            <h2>Results</h2>
+
+            <h3>Consume Line</h3>
+            <h3>Copy 64 Hex</h3>
+            <h3>Validate</h3>
+            <h3>Parse Diff</h3>
+        </div>
+
+    </body>
+</html>
+
