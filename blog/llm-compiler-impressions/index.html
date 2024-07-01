@@ -52,10 +52,37 @@
             <pre>
 [INST] Give the LLVM-IR for the following code when optimized using opt -p '{passes}':
 
-<code>{ir}</code>
+&lt;code&gt;{ir}&lt;/code&gt;
 
 The input code has instruction count {ir_count} and binary size {bin_size} bytes. [/INST]
-            </pre>            
+            </pre>
+
+            <p>The second translates from LLVM IR to ASM given some optimization passes.</p> 
+
+            <pre>
+[INST] Give the assembly for the following code when optimized using opt -p '{passes}':
+
+&lt;code&gt;{ir}&lt;/code&gt;
+
+The input code has instruction count {ir_count} and binary size {bin_size} bytes. [/INST]
+            </pre>   
+
+            <p>The third is about code optimizations. We did not test this so we cannot speak to whether it provides a list of optimization passes or actually describes what they do to the LLVM IR.</p>
+
+            <pre>
+[INST] Tell me how to optimize this LLVM-IR for object file size:
+
+&lt;code&gt;{ir}&lt;/code&gt; [/INST]
+            </pre>
+
+            <p>The fourth is for lifting assembly to LLVM IR. We also did not run this functionality.</p>
+
+            <pre>
+[INST] Disassemble this code to LLVM-IR:
+
+&lt;code&gt;{asm}&lt;/code&gt; [/INST]
+            </pre>
+
 
         </div>
 
