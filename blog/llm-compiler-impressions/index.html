@@ -252,7 +252,7 @@ The input code has instruction count {ir_count} and binary size {bin_size} bytes
 
             <p>For the outputs, it would be great to focus on a translation that is easy to validate. Hand patching object files into executables does not scale. Having LLVM link or merge an assembly file with an LLVM IR file would. Now, it might be our less-than-expert knowledge of LLVM, but if a linking the output format is not possible without significant engineering, it might be good to focus on outputs or translations (source to IR, perchance) that can be more easily situated into a larger project for validation.</p>
 
-            <p>Our opinion about output formats also applies to other code generation models. The output formats were selected with the assumption that there is a human in the loop to copy and paste code or place a cursor in an IDE; they are generally not well suited to being programatically situated in a larger code project.</p>
+            <p>This opinion applies to other code generation models as well. The output formats were selected with the assumption that there is a human in the loop to copy and paste code or to place a cursor in an IDE; they are generally not well suited to being programatically situated in a larger code project.</p>
 
             <p>The results were surprisingly good. This is the first model in a niche domain. For the smaller functions to work on the first generation proves the viability of this research.</p>
 
